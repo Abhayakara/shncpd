@@ -23,9 +23,11 @@ THE SOFTWARE.
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/socket.h>
+#define __APPLE_USE_RFC_3542
 #include <netinet/in.h>
 #include <netinet/icmp6.h>
 

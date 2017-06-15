@@ -35,6 +35,7 @@ THE SOFTWARE.
 #include <sys/types.h>
 #include <sys/socket.h>
 #define __USE_GNU
+#define __APPLE_USE_RFC_3542
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <net/if.h>
