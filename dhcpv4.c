@@ -437,7 +437,14 @@ dhcpv4_send(int s, struct sockaddr_in *to, int dontroute,
     unsigned char buf[buflen];
     int i = 0;
     int rc;
-    struct ifreq ifr;
+    struct in_pktinfo *pktin;
+    struct msghdr mh;
+    struct iovec iov;
+    struct {
+      struct { struct cmsghdr cmh; struct in_pktinfo pi; char extra[128]; } space;
+      struct cmsghdr cmh;
+    } cmh;
+
 
     debugf("-> DHCPv4 (type %d) on interface %d\n", type, ifindex);
 
@@ -519,17 +526,28 @@ dhcpv4_send(int s, struct sockaddr_in *to, int dontroute,
     CHECK(1);
     BYTE(255);
 
-    memset(&ifr, 0, sizeof(ifr));
-    if_indextoname(ifindex, ifr.ifr_name);
-    rc = setsockopt(dhcpv4_socket, SOL_SOCKET, SO_BINDTODEVICE,
-                    &ifr, sizeof(ifr));
-    if(rc < 0)
-        return -1;
+    memset(&mh, 0, sizeof mh);
+    memset(&iov, 0, sizeof iov);
+    
+    iov.iov_base = buf;
+    iov.iov_len = i;
+    mh.msg_iov = &iov;
+    mh.msg_iovlen = 1;
+    mh.msg_name = (struct sockaddr *)to;
+    mh.msg_namelen = sizeof *to;
+    
+    cmh.cmh.cmsg_len = CMSG_LEN(sizeof *pktin);
+    cmh.cmh.cmsg_level = IPPROTO_IP;
+    cmh.cmh.cmsg_type = IP_PKTINFO;
 
-    rc = sendto(dhcpv4_socket, buf, i, dontroute ? MSG_DONTROUTE : 0,
-                (struct sockaddr*)to, sizeof(*to));
+    pktin = (struct in_pktinfo *)CMSG_DATA(&cmh);
+    memset(pktin, 0, sizeof *pktin);
+    pktin->ipi_ifindex = ifindex;
 
-    setsockopt(dhcpv4_socket, SOL_SOCKET, SO_BINDTODEVICE, NULL, 0);
+    mh.msg_control = &cmh;
+    mh.msg_controllen = CMSG_SPACE(sizeof *pktin);
+
+    rc = sendmsg(dhcpv4_socket, &mh, dontroute ? MSG_DONTROUTE : 0);
     return rc;
 
  fail:
