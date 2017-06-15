@@ -440,11 +440,8 @@ dhcpv4_send(int s, struct sockaddr_in *to, int dontroute,
     struct in_pktinfo *pktin;
     struct msghdr mh;
     struct iovec iov;
-    struct {
-      struct { struct cmsghdr cmh; struct in_pktinfo pi; char extra[128]; } space;
-      struct cmsghdr cmh;
-    } cmh;
-
+    char cmbuf[(sizeof (struct cmsghdr)) + (sizeof (struct in_pktinfo)) + 16];
+    struct cmsghdr *cmh;
 
     debugf("-> DHCPv4 (type %d) on interface %d\n", type, ifindex);
 
@@ -536,11 +533,12 @@ dhcpv4_send(int s, struct sockaddr_in *to, int dontroute,
     mh.msg_name = (struct sockaddr *)to;
     mh.msg_namelen = sizeof *to;
     
-    cmh.cmh.cmsg_len = CMSG_LEN(sizeof *pktin);
-    cmh.cmh.cmsg_level = IPPROTO_IP;
-    cmh.cmh.cmsg_type = IP_PKTINFO;
+    cmh = (struct cmsghdr *)cmbuf;
+    cmh->cmsg_len = CMSG_LEN(sizeof *pktin);
+    cmh->cmsg_level = IPPROTO_IP;
+    cmh->cmsg_type = IP_PKTINFO;
 
-    pktin = (struct in_pktinfo *)CMSG_DATA(&cmh);
+    pktin = (struct in_pktinfo *)CMSG_DATA(cmh);
     memset(pktin, 0, sizeof *pktin);
     pktin->ipi_ifindex = ifindex;
 
